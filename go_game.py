@@ -9,21 +9,24 @@ class Board:
     def place_stone(self, x, y, color):
         self.board[x][y] = color
 class GoGame:
-    def __init__(self, size, conn):
+    def __init__(self, size, conn, player):
         self.board = Board(size)
-        self.current_player = 'B'  # Black plays first
+        self.current_player = player  # Black plays first
         self.conn = conn
+        self.other_player = 'W' if player == 'B' else 'B'
         
     def play(self):
         while not self.game_over():
             self.display()
-            x, y = self.make_move()
-            self.board.place_stone(x, y, self.current_player)
-            self.current_player = 'W' if self.current_player == 'B' else 'B'
-            self.send_move(x, y)
-            x, y = self.receive_move()
-            self.board.place_stone(x, y, self.current_player)
-            self.current_player = 'W' if self.current_player == 'B' else 'B'
+            if self.current_player == 'B':
+                x, y = self.make_move()
+                self.board.place_stone(x, y, self.current_player)
+                self.send_move(x, y)
+                self.current_player = 'W'
+            else:
+                x, y = self.receive_move()
+                self.board.place_stone(x, y, self.other_player)
+                self.current_player = 'B'
             
     def make_move(self):
         while True:
@@ -56,9 +59,10 @@ class GoGame:
         return x, y
 
 # Host side
-if len(sys.argv) == 4 and sys.argv[1] == 'host':
+if len(sys.argv) == 5 and sys.argv[1] == 'host':
     HOST = sys.argv[2]  # The IP address or domain name of the host
     PORT = int(sys.argv[3])  # The port to bind to
+    PLAYER = sys.argv[4]  # The player (B or W)
     
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
@@ -66,19 +70,20 @@ if len(sys.argv) == 4 and sys.argv[1] == 'host':
         conn, addr = s.accept()
         with conn:
             print('Connected by', addr)
-            game = GoGame(19, conn)
+            game = GoGame(19, conn, PLAYER)
             game.play()
 
 # Client side
-elif len(sys.argv) == 4 and sys.argv[1] == 'client':
+elif len(sys.argv) == 5 and sys.argv[1] == 'client':
     HOST = sys.argv[2]  # The IP address or domain name of the host
     PORT = int(sys.argv[3])  # The port to connect to
+    PLAYER = sys.argv[4]  # The player (B or W)
     
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.connect((HOST, PORT))
-        game = GoGame(19, s)
+        game = GoGame(19, s, PLAYER)
         game.play()
 
 else:
-    print("Usage: python go_game.py host IP_address port")
-    print("       python go_game.py client IP_address port")
+    print("Usage: python go_game.py host IP_address port player")
+    print("       python go_game.py client IP_address port player")
